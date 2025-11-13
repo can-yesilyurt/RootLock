@@ -1,6 +1,4 @@
 # RootLock
-“drop-in” root utility that can run privileged setup tasks (like configuring iPhone USB network interfaces) **without ever storing the plaintext password in the source tree or the binary**, and **without working through LaunchDaemons / SMJobBless / LaunchConstraints** during development.
-
 
 RootLock is a Swift CLI that packages:
 
@@ -17,28 +15,28 @@ The core idea: you get a “drop-in” root utility that can run privileged setu
 
 At build time:
 
-- A helper tool (`EmbedCredentials.swift`, invoked from `build_secure.sh`)  
-  - reads the **admin password** from the command line,  
-  - reads the **machine hardware UUID** (`IOPlatformUUID`),  
-  - generates a random **KDF salt**,  
-  - derives a **32-byte key via HKDF-SHA256** from:
-
-    ```text
-    key material = IOPlatformUUID || "NETWORK_SETUP_ENCRYPTION"
-    salt         = 16 random bytes
-    info         = "password-encryption"
-    ```
-
-  - encrypts the password with **AES-256-GCM**,  
-  - outputs **Base64-encoded KDF salt and ciphertext blob**, which are then inlined into `SecureNetworkSetup.swift`.
-
-- `build_secure.sh` also takes `Script.sh`, injects its contents into a Swift multiline string literal, and produces a final Swift source where both:
-  - `encryptedPassword` + `kdfSalt`  
-  - the full script body  
-  are **compiled directly into the binary**.
-
-At runtime:
-
+ - A helper tool (`EmbedCredentials.swift`, invoked from `build_secure.sh`)  
+ - reads the **admin password** from the command line,  
+ - reads the **machine hardware UUID** (`IOPlatformUUID`),  
+ - generates a random **KDF salt**,  
+ - derives a **32-byte key via HKDF-SHA256** from:
+  
+  ```text
+   key material = IOPlatformUUID || "NETWORK_SETUP_ENCRYPTION"
+   salt         = 16 random bytes
+   info         = "password-encryption"
+  ```
+ 
+ - encrypts the password with **AES-256-GCM**,  
+ - outputs **Base64-encoded KDF salt and ciphertext blob**, which are then inlined into `SecureNetworkSetup.swift`.
+ 
+ - `build_secure.sh` also takes `Script.sh`, injects its contents into a Swift multiline string literal, and produces a final Swift source where both:
+ - `encryptedPassword` + `kdfSalt`  
+ - the full script body  
+ are **compiled directly into the binary**.
+ 
+ At runtime:
+ 
 1. The CLI reads `IOPlatformUUID` again.
 2. It recomputes the HKDF-SHA256 key using the embedded salt.
 3. It splits the embedded blob into:
